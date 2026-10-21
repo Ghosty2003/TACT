@@ -1,0 +1,15 @@
+# generated data, results and figures (all reproducible with the commands in the README)
+data/
+data_*/
+results/
+figures/
+figures_preview/
+*.zip
+*.pt
+# python / editor / OS
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+.DS_Store
+._*
