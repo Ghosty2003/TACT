@@ -21,7 +21,7 @@ import pandas as pd
 
 from tact.decision import budget as B
 from tact.core.generate_dataset import QUESTIONS, availability
-from tact.reward.grid_eval import TOPICS
+from tact.core.grid_eval import TOPICS
 from tact.core.model import CONFIG, EMOTIONS, RESULTS_DIR, ROOT, FrozenBert, get_device
 from tact.core.plots import is_habit, necessity
 

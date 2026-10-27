@@ -27,7 +27,7 @@ def main():
     preds = []
     for seed in range(5):
         m = MODELS[ARCH](enc).to(device)
-        m.load_state_dict(torch.load(os.path.join(ROOT, "results", CKPT[ARCH], f"scratch_seed{seed}_final.pt"), map_location=device))
+        m.load_state_dict(torch.load(os.path.join(RESULTS_DIR, CKPT[ARCH], f"scratch_seed{seed}_final.pt"), map_location=device))
         preds.append(plots.pred_grid(m))
     mean_pred = np.mean(preds, axis=0)
     name = MODELS[ARCH].__name__

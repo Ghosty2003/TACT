@@ -35,11 +35,15 @@ import torch.nn.functional as F
 
 from tact.core import plots  # shared plot style / colors
 from tact.core.generate_dataset import ACT_TEXT, QUESTIONS
-from tact.core.model import ARCH, EXTRA_ORDER, INPUT_COLS, MODELS, RESULTS_DIR, ROOT, FrozenBert, get_device, make_tensors
+from tact.core.model import ARCH, EXTRA_ORDER, INPUT_COLS, MODELS, RESULTS_DIR, ROOT, V2, FrozenBert, get_device, make_tensors
 
 torch.use_deterministic_algorithms(True, warn_only=True)
 
 DATA = os.path.join(ROOT, "data_dpo")
+# Decision rule. "dpo" (default): the SFT + DPO policy A of the original paper. "threshold" (default with TACT_V2=1): ask iff r_hat(ask) - r_hat(act) > 0 (Eq. 2);
+# no SFT / DPO is trained, A and B of every script are then the same decision. DECISION=dpo with TACT_V2=1 trains the policy on top of the same reward model.
+DECISION = os.environ.get("DECISION", "threshold" if V2 else "dpo")
+assert DECISION in ("dpo", "threshold")
 MODEL_KW = {}   # extra model arguments, e.g. {"location_dim": 8} / {"n_locations": 3} (extensibility.py)
 NS = [25, 50, 75, 100, 150, 250, 350]
 SEEDS = [0, 1, 2, 3, 4]
@@ -250,14 +254,25 @@ class Ours:
 
     def fit_round(self, n, rnd_seed, warm):
         self.fit_reward(n, rnd_seed, warm)
-        self.fit_policy(n, rnd_seed, "scratch" if (self.pol is None or not warm) else "continue")
+        if DECISION == "dpo":
+            self.fit_policy(n, rnd_seed, "scratch" if (self.pol is None or not warm) else "continue")
+        else:
+            self.t["sft"] = self.t["dpo"] = 0.0
+
+    @torch.no_grad()
+    def decide_policy(self, f):
+        """Decisions of the SFT + DPO policy (needs fit_policy); True = ask."""
+        self.pol.eval()
+        return (margin(self.pol, f) > 0).cpu().numpy()
 
     @torch.no_grad()
     def decide(self, f):
-        """(A decisions, B decisions): True = ask."""
+        """(A decisions, B decisions): True = ask. B = argmax of the reward model (the threshold rule); A = the DPO policy, or the same as B with DECISION=threshold."""
         ra, rc = reward_scores(self.rm, f)
-        self.pol.eval()
-        return (margin(self.pol, f) > 0).cpu().numpy(), (ra > rc).cpu().numpy()
+        b = (ra > rc).cpu().numpy()
+        if DECISION == "dpo":
+            return self.decide_policy(f), b
+        return b, b.copy()
 
 
 def _sync(dev):
@@ -674,6 +689,9 @@ def write_summary(df, dfn, so, bl, store, data, cost):
             "- Early stopping uses the 75 validation scenarios (150 rows) for A and B in the main runs; this is data beyond N. "
             "The no-validation sensitivity above removes it.",
             "- Devices: sweeps ran on " + str(data.dev) + " with deterministic algorithms; timings in the cost section are CPU."]
+    if DECISION == "threshold":
+        out.insert(1, "> **v2 (final architecture, threshold rule).** The decision of A and B is the same threshold rule on the reward model (ask iff r_hat(ask) - r_hat(act) > 0); "
+                      "no SFT/DPO policy is trained, so the A and B columns are identical and the DPO sentences in the design notes below are legacy text of the original script.\n")
     with open(os.path.join(RESULTS_DIR, "budget_summary.md"), "w") as f:
         f.write("\n".join(out) + "\n")
 

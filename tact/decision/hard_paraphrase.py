@@ -16,7 +16,7 @@ import torch.nn.functional as F
 
 from tact.decision import budget as B
 from tact.core.generate_dataset import QUESTIONS
-from tact.decision.hard_paraphrase_texts import HARD, HARD_DRAFT1
+from tact.core.hard_paraphrase_texts import HARD, HARD_DRAFT1
 from tact.core.model import ARCH, RESULTS_DIR
 
 NS_HARD = [150, 350]

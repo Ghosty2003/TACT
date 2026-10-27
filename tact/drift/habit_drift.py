@@ -1,6 +1,6 @@
 """Habit drift: the Saturday-fruit habit stops being true after round 3 (results/habit_drift.md, results/habit_drift.png).
 
-    python -m tact.robustness.habit_drift
+    python -m tact.drift.habit_drift
 
 Seven rounds of 50 training scenarios (the first 350 scenarios of data_dpo, file order). Rounds 1-3 carry the original labels. From round 4 on
 the Saturday-fruit rule no longer holds: for the scenarios of rounds 4-7 with topic = fruit and day = Saturday the necessity is the base 0.80
@@ -28,7 +28,7 @@ import pandas as pd
 
 from tact.decision import budget as B
 from tact.core.generate_dataset import QUESTIONS, availability
-from tact.reward.grid_eval import TOPICS
+from tact.core.grid_eval import TOPICS
 from tact.core.model import CONFIG, EMOTIONS, RESULTS_DIR, ROOT, FrozenBert, INPUT_COLS, get_device, make_tensors
 from tact.core.plots import is_habit, necessity
 

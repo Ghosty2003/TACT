@@ -27,7 +27,7 @@ from scipy.stats import rankdata
 from tact.decision import budget as B
 from tact.core import plots
 from tact.core.generate_dataset import availability
-from tact.decision.hard_paraphrase_texts import HARD
+from tact.core.hard_paraphrase_texts import HARD
 from tact.core.model import CONFIG, EMOTIONS, RESULTS_DIR
 
 SIGNALS = ["knn", "maha", "negcos", "mcd"]

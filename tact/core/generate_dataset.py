@@ -342,6 +342,15 @@ def write_act_dataset(df, tr_idx, va_idx, te_idx, args):
             r["score_clean"] = round(clean, 3)
             r["score"] = round(float(np.clip(clean + nrng.gauss(0, LABEL_NOISE), 0.0, 1.0)), 3)
 
+    if getattr(args, "label", "continuous") == "binary":
+        # 0/1 feedback: the user only accepts or rejects. y ~ Bernoulli(r*) with the noise-free value r* of the action
+        # (ask: n * t, act: 1 - n), no thresholding; one draw per scenario and action from Random(seed + 9).
+        # score_clean (the evaluation truth) and everything else are unchanged.
+        brng = random.Random(args.seed + getattr(args, "label_offset", 9))
+        for r in scen:
+            r["score"] = float(brng.random() < r["score_clean"])
+            r["act_score"] = float(brng.random() < r["act_clean"])
+
     def long_rows(ids, unseen=False):
         out = []
         for i in ids:
@@ -363,6 +372,8 @@ def write_act_dataset(df, tr_idx, va_idx, te_idx, args):
     for name, d in files.items():
         d.to_csv(os.path.join(args.outdir, name), index=False)
     cfg = make_cfg(args.n, args.seed)
+    if getattr(args, "label", "continuous") == "binary":
+        cfg["label"] = "binary: score ~ Bernoulli(score_clean); score_clean is the noise-free truth"
     if getattr(args, "profile", None):
         cfg["user"] = args.profile
     if truth_form != "product":
@@ -407,6 +418,11 @@ def main():
     ap.add_argument("--user-seed", type=int, default=0,
                     help="(with --with-act) simulate user k >= 1: valence table (default +-0.15, users 9 and 10 non-monotone), 4 habit rules "
                          "from a pool of 10, weekday-morning availability and weekend openness, independent scenario draw; 0 = the default user")
+    ap.add_argument("--label", choices=("continuous", "binary"), default="continuous",
+                    help="(with --with-act) continuous noisy scores (default) or 0/1 feedback drawn as Bernoulli(r*)")
+    ap.add_argument("--label-offset", type=int, default=9,
+                    help="(with --label binary) the Bernoulli labels are drawn with Random(seed + offset); default 9 = the draw of data_bin*. "
+                         "Other offsets give independent label draws for the SAME scenarios")
     ap.add_argument("--with-act", action="store_true",
                     help="long format with an 'act' candidate per scenario + unseen-phrasing test set")
     args = ap.parse_args()
@@ -418,6 +434,8 @@ def main():
     for v in args.extras:
         if v not in EXTRA_VARS:
             ap.error(f"unknown extra variable {v}")
+    if args.label == "binary" and not args.with_act:
+        ap.error("--label binary requires --with-act")
     if args.user_seed and (not args.with_act or args.extras or args.truth_form != "product"):
         ap.error("--user-seed requires --with-act and no extra variables / truth form")
     if args.truth_form != "product" and (not args.with_act or args.extras):

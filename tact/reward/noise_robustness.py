@@ -27,7 +27,7 @@ import pandas as pd
 import torch
 from scipy.stats import ttest_rel
 
-from tact.reward.grid_eval import ARCH_NAME, SHAPE, build_grid, grid_metrics, pm
+from tact.core.grid_eval import ARCH_NAME, SHAPE, build_grid, grid_metrics, pm
 from tact.core.model import EMOTIONS, MODELS, RESULTS_DIR, FrozenBert, get_device, load_csv, make_tensors
 from tact.reward.replay import HPARAMS, run_seed, train
 from tact.core import plots  # shared plot style

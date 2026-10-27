@@ -21,11 +21,17 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 DATA_DIR = os.path.join(ROOT, "data") if os.path.isdir(os.path.join(ROOT, "data")) else ROOT
 # ARCH=onehot (environment variable) switches the main reward/policy model of budget.py, hard_paraphrase.py and utility.py
 # to OneHotScorer and redirects their output to results/onehot_as_main/. Default: BertScorer, results/.
+# TACT_V2 (default 1; TACT_V2=0 = the original course-project model of the tag v1-course) selects the final architecture of Experiment D for EVERY script (results/arch_selection.md): the frozen sentence encoder
+# sentence-transformers/bert-base-nli-mean-tokens with mean pooling, the Context encoder + rank-16 bilinear head (heads.BilinearScorer) under the
+# name "bert", and results written to results/v2/. TACT_V2=0: the original model (CLS pooling, BertScorer, results/).
+V2 = os.environ.get("TACT_V2", "1") != "0"
 ARCH = os.environ.get("ARCH", "bert")
 assert ARCH in ("bert", "onehot"), ARCH
-RESULTS_DIR = os.path.join(ROOT, "results") if ARCH == "bert" else os.path.join(ROOT, "results", "onehot_as_main")
+RESULTS_DIR = (os.path.join(ROOT, "results", "v2") if V2 else
+               (os.path.join(ROOT, "results") if ARCH == "bert" else os.path.join(ROOT, "results", "onehot_as_main")))
 os.makedirs(RESULTS_DIR, exist_ok=True)
-BERT_NAME = "bert-base-uncased"
+BERT_NAME = "sentence-transformers/bert-base-nli-mean-tokens" if V2 else "bert-base-uncased"
+POOL = "mean" if V2 else "cls"   # "cls": last-layer [CLS]; "mean": attention-mask mean over the last layer's tokens
 
 with open(os.path.join(DATA_DIR, "config.json")) as _f:
     CONFIG = json.load(_f)
@@ -96,7 +102,12 @@ class FrozenBert:
         if missing:
             tok = self.tokenizer(missing, padding=True, truncation=True, max_length=64,
                                  return_tensors="pt").to(self.device)
-            cls = self.bert(**tok).last_hidden_state[:, 0].float().cpu()
+            h = self.bert(**tok).last_hidden_state
+            if POOL == "cls":
+                cls = h[:, 0].float().cpu()
+            else:
+                m = tok["attention_mask"].unsqueeze(-1).to(h.dtype)
+                cls = ((h * m).sum(1) / m.sum(1)).float().cpu()
             for q, v in zip(missing, cls):
                 self._cache[q] = v
         return torch.stack([self._cache[q] for q in questions])
@@ -212,3 +223,9 @@ class OneHotScorer(_Scorer):
 
 
 MODELS = {"bert": BertScorer, "onehot": OneHotScorer}
+if V2:
+    def _final_scorer(*a, **kw):
+        from tact.core.heads import BilinearScorer          # lazy: heads.py subclasses BertScorer of this module
+        return BilinearScorer(*a, **kw)
+    _final_scorer.__name__ = "BilinearScorer"
+    MODELS["bert"] = _final_scorer

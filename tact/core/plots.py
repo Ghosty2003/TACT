@@ -19,7 +19,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from scipy.stats import spearmanr
 
 from tact.core.generate_dataset import availability  # not stored in config.json, only its name in "formula"
-from tact.core.model import CONFIG, EMOTIONS, RESULTS_DIR, BertScorer, FrozenBert, get_device
+from tact.core.model import CONFIG, EMOTIONS, MODELS, RESULTS_DIR, BertScorer, FrozenBert, get_device
 
 METRICS_CSV = os.path.join(RESULTS_DIR, "replay_metrics.csv")
 QUESTION, TIME_IDX = "Which fruit should I use for the salad?", 1
@@ -128,7 +128,7 @@ def heatmaps():
     preds = []
     for seed in range(5):
         path = os.path.join(RESULTS_DIR, "models", f"scratch_seed{seed}_final.pt")
-        m = BertScorer(encoder).to(device)
+        m = MODELS["bert"](encoder).to(device)     # = BertScorer unless TACT_V2=1 (then the final architecture)
         m.load_state_dict(torch.load(path, map_location=device))
         preds.append(pred_grid(m))
     mean_pred = np.mean(preds, axis=0)

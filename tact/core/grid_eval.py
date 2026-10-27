@@ -1,6 +1,6 @@
 """Full-grid ground-truth evaluation of the two architectures (final round, 350 samples, 5 seeds, both strategies).
 
-    python -m tact.reward.grid_eval        # needs replay.py runs for bert and onehot (saved final checkpoints)
+    python -m tact.core.grid_eval        # needs replay.py runs for bert and onehot (saved final checkpoints)
 
 Grid = topic(12) x emotion(6) x day(7) x time(3) = 1512 cells; each topic uses its first question text.
 Target = score_clean from the config.json formula (necessity * valence * availability). No label noise,
